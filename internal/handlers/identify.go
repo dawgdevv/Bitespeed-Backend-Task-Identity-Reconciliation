@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -45,7 +46,7 @@ func (h *IdentifyHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	response, err := h.service.Identify(req)
 	if err != nil {
 		log.Printf("Error processing identify request: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Internal server error: %v", err), http.StatusInternalServerError)
 		return
 	}
 

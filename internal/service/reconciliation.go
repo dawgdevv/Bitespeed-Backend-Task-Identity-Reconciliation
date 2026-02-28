@@ -117,21 +117,21 @@ func (s *ReconciliationService) findLinkedContacts(email, phoneNumber *string) (
 // queryContactsByEmail queries contacts by email
 func (s *ReconciliationService) queryContactsByEmail(email string) ([]*models.Contact, error) {
 	query := `SELECT id, phone_number, email, linked_id, link_precedence, created_at, updated_at, deleted_at 
-			  FROM contacts WHERE email = ? AND deleted_at IS NULL`
+			  FROM contacts WHERE email = $1 AND deleted_at IS NULL`
 	return s.queryContacts(query, email)
 }
 
 // queryContactsByPhoneNumber queries contacts by phone number
 func (s *ReconciliationService) queryContactsByPhoneNumber(phone string) ([]*models.Contact, error) {
 	query := `SELECT id, phone_number, email, linked_id, link_precedence, created_at, updated_at, deleted_at 
-			  FROM contacts WHERE phone_number = ? AND deleted_at IS NULL`
+			  FROM contacts WHERE phone_number = $1 AND deleted_at IS NULL`
 	return s.queryContacts(query, phone)
 }
 
 // queryContactsByLinkedID queries contacts by linked_id
 func (s *ReconciliationService) queryContactsByLinkedID(linkedID int64) ([]*models.Contact, error) {
 	query := `SELECT id, phone_number, email, linked_id, link_precedence, created_at, updated_at, deleted_at 
-			  FROM contacts WHERE linked_id = ? AND deleted_at IS NULL`
+			  FROM contacts WHERE linked_id = $1 AND deleted_at IS NULL`
 	return s.queryContacts(query, linkedID)
 }
 
@@ -217,15 +217,11 @@ func (s *ReconciliationService) hasNewInformation(contacts []*models.Contact, em
 // createPrimaryContact creates a new primary contact
 func (s *ReconciliationService) createPrimaryContact(email, phoneNumber *string) (*models.Contact, error) {
 	query := `INSERT INTO contacts (phone_number, email, link_precedence, created_at, updated_at) 
-			  VALUES (?, ?, 'primary', ?, ?)`
+			  VALUES ($1, $2, 'primary', $3, $4) RETURNING id`
 
 	now := time.Now()
-	result, err := s.db.Conn.Exec(query, phoneNumber, email, now, now)
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := result.LastInsertId()
+	var id int64
+	err := s.db.Conn.QueryRow(query, phoneNumber, email, now, now).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -243,15 +239,11 @@ func (s *ReconciliationService) createPrimaryContact(email, phoneNumber *string)
 // createSecondaryContact creates a new secondary contact
 func (s *ReconciliationService) createSecondaryContact(email, phoneNumber *string, linkedID int64) (*models.Contact, error) {
 	query := `INSERT INTO contacts (phone_number, email, linked_id, link_precedence, created_at, updated_at) 
-			  VALUES (?, ?, ?, 'secondary', ?, ?)`
+			  VALUES ($1, $2, $3, 'secondary', $4, $5) RETURNING id`
 
 	now := time.Now()
-	result, err := s.db.Conn.Exec(query, phoneNumber, email, linkedID, now, now)
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := result.LastInsertId()
+	var id int64
+	err := s.db.Conn.QueryRow(query, phoneNumber, email, linkedID, now, now).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +285,7 @@ func (s *ReconciliationService) reconcilePrimaryStatus(contacts []*models.Contac
 
 // updateContactPrecedence updates a contact's link_precedence and linked_id
 func (s *ReconciliationService) updateContactPrecedence(id int64, precedence string, linkedID *int64) error {
-	query := `UPDATE contacts SET link_precedence = ?, linked_id = ?, updated_at = ? WHERE id = ?`
+	query := `UPDATE contacts SET link_precedence = $1, linked_id = $2, updated_at = $3 WHERE id = $4`
 	_, err := s.db.Conn.Exec(query, precedence, linkedID, time.Now(), id)
 	return err
 }
@@ -369,7 +361,7 @@ func (s *ReconciliationService) buildResponse(primaryID int64) (*models.Identify
 func (s *ReconciliationService) getAllLinkedContacts(primaryID int64) ([]*models.Contact, error) {
 	query := `SELECT id, phone_number, email, linked_id, link_precedence, created_at, updated_at, deleted_at 
 			  FROM contacts 
-			  WHERE (id = ? OR linked_id = ?) AND deleted_at IS NULL`
+			  WHERE (id = $1 OR linked_id = $2) AND deleted_at IS NULL`
 
 	return s.queryContacts(query, primaryID, primaryID)
 }
