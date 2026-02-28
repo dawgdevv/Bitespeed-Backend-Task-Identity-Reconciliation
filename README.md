@@ -6,6 +6,96 @@ A Go web service that implements identity reconciliation across customer contact
 
 This service manages customer identity across multiple purchases by linking contacts that share either email or phone number. It implements a primary/secondary contact hierarchy where the oldest contact becomes the primary.
 
+## Test Live URL
+
+Live API: `https://bitespeed-backend-task-identity-z8ny.onrender.com/identify`
+
+### 1. Create a new primary contact
+```bash
+curl -X POST https://bitespeed-backend-task-identity-z8ny.onrender.com/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","phoneNumber":"1234567890"}'
+```
+
+Expected Response:
+```json
+{
+  "contact": {
+    "primaryContatctId": 1,
+    "emails": ["user@example.com"],
+    "phoneNumbers": ["1234567890"],
+    "secondaryContactIds": []
+  }
+}
+```
+
+### 2. Link with new phone number (same email)
+```bash
+curl -X POST https://bitespeed-backend-task-identity-z8ny.onrender.com/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","phoneNumber":"0987654321"}'
+```
+
+Expected Response:
+```json
+{
+  "contact": {
+    "primaryContatctId": 1,
+    "emails": ["user@example.com"],
+    "phoneNumbers": ["1234567890", "0987654321"],
+    "secondaryContactIds": [2]
+  }
+}
+```
+
+### 3. Link with new email (same phone)
+```bash
+curl -X POST https://bitespeed-backend-task-identity-z8ny.onrender.com/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"newuser@example.com","phoneNumber":"1234567890"}'
+```
+
+Expected Response:
+```json
+{
+  "contact": {
+    "primaryContatctId": 1,
+    "emails": ["user@example.com", "newuser@example.com"],
+    "phoneNumbers": ["1234567890", "0987654321"],
+    "secondaryContactIds": [2, 3]
+  }
+}
+```
+
+### 4. Create another primary contact (different user)
+```bash
+curl -X POST https://bitespeed-backend-task-identity-z8ny.onrender.com/identify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"another@example.com","phoneNumber":"5555555555"}'
+```
+
+Expected Response:
+```json
+{
+  "contact": {
+    "primaryContatctId": 4,
+    "emails": ["another@example.com"],
+    "phoneNumbers": ["5555555555"],
+    "secondaryContactIds": []
+  }
+}
+```
+
+### 5. Health Check
+```bash
+curl https://bitespeed-backend-task-identity-z8ny.onrender.com/health
+```
+
+Expected Response:
+```json
+{"status":"ok"}
+```
+
 ## Tech Stack
 
 - **Language**: Go
